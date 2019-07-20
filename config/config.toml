@@ -1,0 +1,34 @@
+service_name = "target-dicts"
+host_name = "dev"
+port = "9090"
+system_token = "12345"
+debug = false
+target_api = "https://target/my.com/api"
+
+[services]
+dispatcher = "http://dispatcher/v1"
+
+[storage]
+dsn = "tcp://redis:6379"
+
+[storage.prefixes]
+client = "target:clients"
+token = "target:tokens"
+dict = "target:dicts"
+
+[dicts]
+[dicts.client]
+packages = {}
+segments = { url = "v2/remarketing.json", root = "items", limit = 50 }
+
+[dicts.common]
+mobile_operators = { url = "v2/mobile_operators", root = "items" }
+
+[dicts.fields]
+packages = "id,name,description,status,price,priced_event_type,flags,features,features__product_type,features__url_type,options,options__targetings,max_price_per_unit,banner_format_id,pads_tree_id,url_types,objective"
+banner_formats = "id,name"
+
+[metrix]
+dsn = "influxdb://user:pass@influx:port/bd"
+measurement = "target-dicts"
+
