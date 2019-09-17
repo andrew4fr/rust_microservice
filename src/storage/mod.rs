@@ -1,3 +1,3 @@
 mod redis;
 
-pub use self::redis::Config;
+pub use self::redis::{Config, Redis};

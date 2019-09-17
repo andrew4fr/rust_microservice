@@ -2,10 +2,9 @@ use actix_service::{Service, Transform};
 use actix_web::{dev::ServiceRequest, dev::ServiceResponse, Error, error};
 use futures::future::{ok, err, FutureResult};
 use futures::{Future, Poll};
+use crate::AppState;
 
-pub struct CheckSystemToken {
-    pub token: String,
-}
+pub struct CheckSystemToken;
 
 impl<S, B> Transform<S> for CheckSystemToken
 where
@@ -21,13 +20,12 @@ where
     type Future = FutureResult<Self::Transform, Self::InitError>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ok(CheckSystemTokenMiddleware { service, token: self.token.to_owned() })
+        ok(CheckSystemTokenMiddleware { service })
     }
 }
 
 pub struct CheckSystemTokenMiddleware<S> {
     service: S,
-    pub token: String,
 }
 
 impl<S, B> Service for CheckSystemTokenMiddleware<S>
@@ -56,7 +54,12 @@ where
             None => "".into()
         };
 
-        if token != self.token {
+        let mut sys_token = String::new();
+        if let Some(data) = req.app_data::<AppState>() {
+            sys_token = data.system_token.clone();
+        }
+
+        if token != sys_token {
             Box::new(err(error::ErrorForbidden("Forbidden")))
         } else {
             Box::new(self.service.call(req).and_then(move |res| {

@@ -7,9 +7,11 @@ use std::io::prelude::*;
 mod error;
 mod metrix;
 mod middleware;
+mod handler;
 mod storage;
 
 use error::ConfigError;
+//use storage::Redis;
 
 const HEALTH_ANSWER: &str = r#"{"error": null, "result": "ok"}"#;
 
@@ -43,12 +45,25 @@ struct DictParams {
     limit: Option<u8>,
 }
 
+#[derive(Clone,Debug)]
+struct AppState {
+    system_token: String,
+}
+
 fn main() {
     let config = read_config().unwrap();
     let port = config.port.to_string();
 
+    let data = AppState {
+        system_token: config.system_token.to_string(),
+    };
+
+
+//    let storage = Redis::new(&config.storage);
+
     HttpServer::new(move || {
         App::new()
+            .data(data.clone())
             .route(
                 "health",
                 web::get().to(|| HttpResponse::Ok().body(HEALTH_ANSWER)),
@@ -56,13 +71,19 @@ fn main() {
             .service(
                 web::scope("/")
                     .wrap(middleware::CheckRequestID)
-                    .wrap(middleware::CheckSystemToken {
-                        token: config.system_token.to_string(),
-                    })
+                    .wrap(middleware::CheckSystemToken)
                     .route(
                         "hello",
                         web::get().to(|| HttpResponse::Ok().body("Hello\n")),
-                    ),
+                    )
+                    .route(
+                        "commondicts",
+                        web::to(handler::common_dicts)
+                    )
+                    .route(
+                        "clientdicts",
+                        web::to(handler::client_dicts)
+                    )
             )
     })
     .bind(format!("127.0.0.1:{}", port))

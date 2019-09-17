@@ -6,3 +6,11 @@ pub struct Config {
     pub dsn: String,
     pub prefixes: HashMap<String, String>
 }
+
+pub struct Redis;
+
+impl Redis {
+    pub fn new (_conf: &Config) -> Self {
+        Redis{}
+    }
+}
