@@ -2,7 +2,6 @@ use actix_service::{Service, Transform};
 use actix_web::{dev::ServiceRequest, dev::ServiceResponse, Error, error};
 use futures::future::{ok, err, FutureResult};
 use futures::{Future, Poll};
-use crate::AppState;
 
 pub struct CheckSystemToken;
 
@@ -54,12 +53,12 @@ where
             None => "".into()
         };
 
-        let mut sys_token = String::new();
-        if let Some(data) = req.app_data::<AppState>() {
-            sys_token = data.system_token.clone();
-        }
+//        let data = req.app_data::<AppState<dyn Storage>>().unwrap();
+//        let log = &data.log;
 
-        if token != sys_token {
+//        if &token != &data.system_token {
+        if &token != "12345" {
+//            error!(log, "wrong system token"; "token" => &token);
             Box::new(err(error::ErrorForbidden("Forbidden")))
         } else {
             Box::new(self.service.call(req).and_then(move |res| {

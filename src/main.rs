@@ -3,6 +3,9 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
+use std::sync::Mutex;
+use slog::o;
+use slog::Drain;
 
 mod error;
 mod metrix;
@@ -11,7 +14,7 @@ mod handler;
 mod storage;
 
 use error::ConfigError;
-//use storage::Redis;
+use storage::{Storage, Redis};
 
 const HEALTH_ANSWER: &str = r#"{"error": null, "result": "ok"}"#;
 
@@ -46,24 +49,27 @@ struct DictParams {
 }
 
 #[derive(Clone,Debug)]
-struct AppState {
+struct AppState<S: Storage> {
     system_token: String,
+    log: slog::Logger,
+    storage: S,
 }
 
 fn main() {
     let config = read_config().unwrap();
-    let port = config.port.to_string();
 
-    let data = AppState {
-        system_token: config.system_token.to_string(),
+    let log = setup_logging();
+    let storage = Redis::new(&config.storage);
+
+    let state = AppState {
+        system_token: config.system_token.to_owned(),
+        log: log.clone(),
+        storage:  storage,
     };
-
-
-//    let storage = Redis::new(&config.storage);
 
     HttpServer::new(move || {
         App::new()
-            .data(data.clone())
+            .data(state.clone())
             .route(
                 "health",
                 web::get().to(|| HttpResponse::Ok().body(HEALTH_ANSWER)),
@@ -77,16 +83,16 @@ fn main() {
                         web::get().to(|| HttpResponse::Ok().body("Hello\n")),
                     )
                     .route(
-                        "commondicts",
-                        web::to(handler::common_dicts)
+                        "/dicts/{dicts}",
+                        web::get().to(handler::common_dicts)
                     )
                     .route(
-                        "clientdicts",
-                        web::to(handler::client_dicts)
+                        "/account/{account}/dicts/{dicts}",
+                        web::get().to(handler::client_dicts)
                     )
             )
     })
-    .bind(format!("127.0.0.1:{}", port))
+    .bind(format!("127.0.0.1:{}", config.port))
     .unwrap()
     .run()
     .unwrap();
@@ -99,4 +105,15 @@ fn read_config() -> Result<Config, ConfigError> {
     let config = toml::from_str::<Config>(&buffer)?;
 
     Ok(config)
+}
+
+fn setup_logging() -> slog::Logger {
+    let mut builder = slog_json::Json::new(std::io::stdout());
+    builder = builder
+        .add_key_value(o!("service" => "target-dicts"))
+        .add_default_keys()
+    ;
+
+    let drain = Mutex::new(builder.build()).map(slog::Fuse);
+    slog::Logger::root(drain, o!())
 }

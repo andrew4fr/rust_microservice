@@ -9,7 +9,7 @@ target_api = "https://target/my.com/api"
 dispatcher = "http://dispatcher/v1"
 
 [storage]
-dsn = "tcp://redis:6379"
+dsn = "redis://172.17.0.2"
 
 [storage.prefixes]
 client = "target:clients"
